@@ -1,0 +1,25 @@
+# GIMAT Project
+__pycache__/
+*.py[cod]
+*$py.class
+*.db
+*.sqlite3
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+venv/
+.venv/
+env/
+.env
+.env.local
+node_modules/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+test.py

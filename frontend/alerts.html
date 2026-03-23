@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GIMAT — Ogohlantirishlar</title>
+  <meta name="description" content="Toshqin ogohlantirish tizimi — real-time signallar">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="app-layout" id="app"></div>
+
+<script src="/static/js/app.js"></script>
+<script>
+document.getElementById('app').innerHTML = `
+  ${generateSidebar('alerts')}
+  <div class="main-content">
+    ${generateHeader(t('alerts_title'), 'alerts_title')}
+    <div class="page-content">
+
+      <!-- Summary KPIs -->
+      <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 24px;">
+        <div class="kpi-card" style="--kpi-color: #EF4444">
+          <div class="kpi-icon" style="background: rgba(239,68,68,0.15); color: #EF4444;">🚨</div>
+          <div class="kpi-value" id="count-danger">0</div>
+          <div class="kpi-label" data-i18n="level_danger">${t('level_danger')}</div>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #F59E0B">
+          <div class="kpi-icon" style="background: rgba(245,158,11,0.15); color: #F59E0B;">⚠️</div>
+          <div class="kpi-value" id="count-warning">0</div>
+          <div class="kpi-label" data-i18n="level_warning">${t('level_warning')}</div>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #22C55E">
+          <div class="kpi-icon" style="background: rgba(34,197,94,0.15); color: #22C55E;">✅</div>
+          <div class="kpi-value" id="count-normal">0</div>
+          <div class="kpi-label" data-i18n="level_normal">${t('level_normal')}</div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="card mb-24">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+          <select class="form-select" id="filter-level" style="max-width:180px;" onchange="filterAlerts()">
+            <option value="">Barchasi</option>
+            <option value="danger">${t('level_danger')}</option>
+            <option value="warning">${t('level_warning')}</option>
+            <option value="normal">${t('level_normal')}</option>
+          </select>
+          <select class="form-select" id="filter-status" style="max-width:180px;" onchange="filterAlerts()">
+            <option value="">Barcha holat</option>
+            <option value="true">Faol</option>
+            <option value="false">Tugatilgan</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Alert Cards -->
+      <div id="alerts-list" style="display:flex;flex-direction:column;gap:16px;">
+        <div class="loading-spinner"></div>
+      </div>
+
+    </div>
+  </div>
+`;
+initResponsive();
+
+let allAlerts = [];
+
+async function init() {
+  allAlerts = await apiGet('/api/alerts?limit=100') || [];
+  renderAlerts(allAlerts);
+  updateCounts(allAlerts);
+}
+
+function filterAlerts() {
+  const level = document.getElementById('filter-level').value;
+  const active = document.getElementById('filter-status').value;
+
+  let filtered = allAlerts;
+  if (level) filtered = filtered.filter(a => a.level === level);
+  if (active !== '') filtered = filtered.filter(a => String(a.is_active) === active);
+
+  renderAlerts(filtered);
+}
+
+function updateCounts(alerts) {
+  document.getElementById('count-danger').textContent = alerts.filter(a => a.level === 'danger').length;
+  document.getElementById('count-warning').textContent = alerts.filter(a => a.level === 'warning').length;
+  document.getElementById('count-normal').textContent = alerts.filter(a => a.level === 'normal').length;
+}
+
+function renderAlerts(alerts) {
+  const container = document.getElementById('alerts-list');
+  if (alerts.length === 0) {
+    container.innerHTML = `<div class="card text-center text-muted" style="padding:48px;">${t('no_data')}</div>`;
+    return;
+  }
+
+  container.innerHTML = alerts.map(alert => {
+    const langSuffix = currentLang === 'en' ? 'en' : currentLang === 'ru' ? 'ru' : 'uz';
+    const msg = alert[`message_${langSuffix}`] || alert.message || '';
+
+    const levelIcon = alert.level === 'danger' ? '🚨' : alert.level === 'warning' ? '⚠️' : '✅';
+    const levelText = alertLevelText(alert.level);
+    const levelBadge = alertLevelClass(alert.level);
+
+    return `
+      <div class="alert-card ${alert.level}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+              <span style="font-size:20px;">${levelIcon}</span>
+              <span style="font-weight:600;font-size:15px;">${alert.station_name || 'Stansiya'}</span>
+              <span class="badge ${levelBadge}">${levelText}</span>
+              ${alert.is_active ? '<span class="badge badge-active" style="font-size:9px;">FAOL</span>' : ''}
+            </div>
+            <div style="color:var(--text-secondary);font-size:13px;margin-bottom:6px;">${msg}</div>
+            <div style="display:flex;gap:16px;font-size:12px;color:var(--text-muted);">
+              <span>🌊 ${t('river')}: <strong>${alert.river_name || '—'}</strong></span>
+              <span>📊 ${t('discharge')}: <strong class="text-mono">${formatNumber(alert.value)} m³/s</strong></span>
+              <span>🎯 Chegara: <strong class="text-mono">${formatNumber(alert.threshold)} m³/s</strong></span>
+            </div>
+          </div>
+          <div style="text-align:right;min-width:100px;">
+            <div style="font-size:11px;color:var(--text-muted);">${formatDate(alert.sent_at)}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+init();
+</script>
+</body>
+</html>

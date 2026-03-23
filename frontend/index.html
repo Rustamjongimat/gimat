@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GIMAT — Gidrologik Intellektual Monitoring</title>
+  <meta name="description" content="O'zbekiston daryolarining gidrologik ko'rsatkichlarini real vaqt rejimida kuzatuvchi intellektual platforma">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+<div class="app-layout" id="app">
+  <!-- Sidebar & Header injected by JS -->
+</div>
+
+<script src="/static/js/app.js"></script>
+<script>
+  // Inject layout
+  document.getElementById('app').innerHTML = `
+    ${generateSidebar('map')}
+    <div class="main-content">
+      ${generateHeader(t('map_title'), 'map_title')}
+      <div class="page-content" style="padding: 16px;">
+        <div class="map-container" id="map-wrapper">
+          <div id="map" style="width:100%;height:100%;"></div>
+          <div class="map-legend" id="map-legend">
+            <h4 data-i18n="legend">${t('legend')}</h4>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--success)"></div> <span data-i18n="level_normal">${t('level_normal')}</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--warning)"></div> <span data-i18n="level_warning">${t('level_warning')}</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div> <span data-i18n="level_danger">${t('level_danger')}</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  initResponsive();
+
+  // ─── Initialize Map ───
+  const map = L.map('map', {
+    center: [41.3, 64.5],
+    zoom: 6,
+    zoomControl: true,
+    attributionControl: false
+  });
+
+  // Dark tile layer
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 18,
+    subdomains: 'abcd'
+  }).addTo(map);
+
+  // Uzbekistan rough border
+  const uzbekBorder = [
+    [37.18, 56.00], [37.37, 57.33], [38.25, 57.06], [38.86, 58.44],
+    [38.27, 61.77], [37.14, 62.73], [37.37, 64.17], [37.91, 65.75],
+    [39.38, 63.06], [39.52, 62.01], [40.22, 61.88], [41.23, 61.59],
+    [41.73, 59.95], [42.35, 59.77], [42.14, 59.45], [42.57, 58.81],
+    [44.97, 58.33], [45.58, 56.00], [45.50, 55.97], [43.66, 58.63],
+    [42.91, 58.28], [42.68, 56.40], [41.74, 55.98], [40.20, 56.02],
+    [39.35, 56.44], [38.44, 56.97], [37.48, 55.97], [37.18, 56.00]
+  ];
+
+  L.polygon(uzbekBorder, {
+    color: 'rgba(96, 165, 250, 0.4)',
+    fillColor: 'rgba(96, 165, 250, 0.05)',
+    weight: 2,
+    dashArray: '5, 5'
+  }).addTo(map);
+
+  // ─── Load Stations ───
+  async function loadStations() {
+    const stations = await apiGet('/api/stations');
+    if (!stations) return;
+
+    stations.forEach(station => {
+      const color = station.alert_level === 'danger' ? '#EF4444' :
+                    station.alert_level === 'warning' ? '#F59E0B' : '#22C55E';
+
+      const marker = L.circleMarker([station.lat, station.lon], {
+        radius: 8,
+        fillColor: color,
+        color: 'rgba(255,255,255,0.3)',
+        weight: 2,
+        fillOpacity: 0.9
+      }).addTo(map);
+
+      // Pulsing effect for danger
+      if (station.alert_level === 'danger') {
+        const pulse = L.circleMarker([station.lat, station.lon], {
+          radius: 14,
+          fillColor: color,
+          color: color,
+          weight: 1,
+          fillOpacity: 0.2
+        }).addTo(map);
+      }
+
+      const langSuffix = currentLang === 'en' ? 'en' : currentLang === 'ru' ? 'ru' : 'uz';
+      const stationName = station[`name_${langSuffix}`] || station.name;
+
+      marker.bindPopup(`
+        <div style="min-width: 200px;">
+          <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px; color: #F1F5F9;">
+            📍 ${stationName}
+          </div>
+          <div style="font-size: 12px; color: #94A3B8; margin-bottom: 6px;">
+            ${t('river')}: <strong style="color:#60A5FA">${station.river_name || '—'}</strong>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 12px;">
+            <span style="color:#64748B">${t('discharge')}:</span>
+            <span style="color:#F1F5F9; font-family: JetBrains Mono, monospace; font-weight:600;">
+              ${station.latest_discharge ? station.latest_discharge.toFixed(1) : '—'} m³/s
+            </span>
+            <span style="color:#64748B">Lat:</span>
+            <span style="color:#94A3B8; font-family: JetBrains Mono, monospace;">${station.lat.toFixed(4)}</span>
+            <span style="color:#64748B">Lon:</span>
+            <span style="color:#94A3B8; font-family: JetBrains Mono, monospace;">${station.lon.toFixed(4)}</span>
+            <span style="color:#64748B">${t('status')}:</span>
+            <span class="badge ${alertLevelClass(station.alert_level)}">${alertLevelText(station.alert_level)}</span>
+          </div>
+          <div style="margin-top: 10px;">
+            <a href="/dashboard?station=${station.id}" class="btn btn-primary btn-sm" style="width:100%; font-size:11px; text-decoration:none;">
+              📊 Dashboard
+            </a>
+          </div>
+        </div>
+      `);
+    });
+  }
+
+  // ─── Draw River Lines ───
+  const riverLines = [
+    { name: 'Amudaryo', coords: [[37.22, 67.28], [37.8, 65.7], [38.5, 63.0], [39.7, 62.5], [40.5, 61.5], [41.5, 61.0], [41.76, 60.65], [42.0, 59.8]], color: '#3B82F6' },
+    { name: 'Sirdaryo', coords: [[40.22, 69.27], [40.5, 68.8], [40.9, 68.0], [41.0, 67.5], [40.8, 67.0], [41.3, 66.0]], color: '#3B82F6' },
+    { name: 'Zarafshon', coords: [[39.5, 68.5], [39.52, 67.85], [39.65, 66.96], [39.8, 66.0], [39.9, 65.35]], color: '#60A5FA' },
+    { name: 'Chirchiq', coords: [[41.51, 69.71], [41.4, 69.5], [41.31, 69.28]], color: '#60A5FA' },
+    { name: 'Qashqadaryo', coords: [[39.0, 67.2], [38.93, 66.88], [38.86, 65.80]], color: '#818CF8' },
+    { name: 'Surxondaryo', coords: [[38.5, 68.0], [38.27, 67.89], [37.5, 67.2]], color: '#818CF8' },
+  ];
+
+  riverLines.forEach(river => {
+    L.polyline(river.coords, {
+      color: river.color,
+      weight: 3,
+      opacity: 0.7,
+      smoothFactor: 1.5
+    }).addTo(map).bindTooltip(river.name, {
+      permanent: false,
+      direction: 'center',
+      className: 'river-label'
+    });
+  });
+
+  loadStations();
+</script>
+</body>
+</html>

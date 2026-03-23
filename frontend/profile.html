@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GIMAT — Profil</title>
+  <meta name="description" content="Foydalanuvchi profili va sozlamalar">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="app-layout" id="app"></div>
+
+<script src="/static/js/app.js"></script>
+<script>
+const user = getUser();
+if (!user) { window.location.href = '/login'; }
+
+document.getElementById('app').innerHTML = `
+  ${generateSidebar('profile')}
+  <div class="main-content">
+    ${generateHeader(t('nav_profile'), 'nav_profile')}
+    <div class="page-content">
+
+      <div class="grid-2" style="grid-template-columns: 1fr 1fr;">
+        <!-- Profile Card -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">👤 Profil ma'lumotlari</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;">
+            <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg, var(--primary), var(--primary-light));display:flex;align-items:center;justify-content:center;font-size:32px;box-shadow:var(--shadow-glow);">
+              👤
+            </div>
+            <div>
+              <div style="font-size:20px;font-weight:700;">${user?.name || 'Foydalanuvchi'}</div>
+              <div style="color:var(--text-muted);font-size:14px;">${user?.email || ''}</div>
+              <span class="badge badge-active" style="margin-top:6px;">${user?.role || 'user'}</span>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="card" style="padding:14px;background:var(--bg-surface);border:none;">
+              <div class="text-xs text-muted">Rol</div>
+              <div style="font-weight:600;font-size:15px;margin-top:4px;">${user?.role === 'super_admin' ? 'Super Admin' : user?.role === 'operator' ? 'Operator' : user?.role === 'researcher' ? 'Tadqiqotchi' : 'Foydalanuvchi'}</div>
+            </div>
+            <div class="card" style="padding:14px;background:var(--bg-surface);border:none;">
+              <div class="text-xs text-muted">Til</div>
+              <div style="font-weight:600;font-size:15px;margin-top:4px;">${user?.lang === 'uz' ? "🇺🇿 O'zbekcha" : user?.lang === 'ru' ? '🇷🇺 Русский' : '🇬🇧 English'}</div>
+            </div>
+            <div class="card" style="padding:14px;background:var(--bg-surface);border:none;">
+              <div class="text-xs text-muted">Holat</div>
+              <div style="font-weight:600;font-size:15px;margin-top:4px;color:var(--success);">● Faol</div>
+            </div>
+            <div class="card" style="padding:14px;background:var(--bg-surface);border:none;">
+              <div class="text-xs text-muted">A'zolik</div>
+              <div style="font-weight:600;font-size:15px;margin-top:4px;">${formatDate(user?.created_at)}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div>
+          <div class="card mb-24">
+            <div class="card-header">
+              <div class="card-title">⚡ Tezkor harakatlar</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <a href="/dashboard" class="btn btn-outline" style="justify-content:flex-start;">📊 Dashboard'ga o'tish</a>
+              <a href="/forecast" class="btn btn-outline" style="justify-content:flex-start;">🤖 AI Prognoz</a>
+              <a href="/alerts" class="btn btn-outline" style="justify-content:flex-start;">🔔 Ogohlantirishlar</a>
+              <a href="/data" class="btn btn-outline" style="justify-content:flex-start;">📁 Ma'lumotlarni yuklab olish</a>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">🔐 Xavfsizlik</div>
+            </div>
+            <button class="btn btn-danger w-full" onclick="logout()">🚪 Tizimdan chiqish</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+`;
+initResponsive();
+</script>
+</body>
+</html>

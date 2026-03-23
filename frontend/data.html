@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GIMAT — Ma'lumotlar</title>
+  <meta name="description" content="Gidrologik ma'lumotlarni ko'rish va yuklab olish">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="app-layout" id="app"></div>
+
+<script src="/static/js/app.js"></script>
+<script>
+document.getElementById('app').innerHTML = `
+  ${generateSidebar('data')}
+  <div class="main-content">
+    ${generateHeader(t('data_title'), 'data_title')}
+    <div class="page-content">
+
+      <!-- Filters -->
+      <div class="card mb-24">
+        <div class="card-header">
+          <div class="card-title">🔍 Filtr</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary btn-sm" onclick="exportData('csv')">📥 ${t('export_csv')}</button>
+            <button class="btn btn-outline btn-sm" onclick="exportData('xlsx')">📥 ${t('export_excel')}</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">${t('river')}</label>
+            <select class="form-select" id="filter-river" onchange="loadData()">
+              <option value="">Yuklanmoqda...</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Boshlanish</label>
+            <input type="date" class="form-input" id="filter-start" value="2023-01-01" onchange="loadData()">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Tugash</label>
+            <input type="date" class="form-input" id="filter-end" value="2024-12-31" onchange="loadData()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Summary -->
+      <div class="kpi-grid" id="stats-grid" style="grid-template-columns: repeat(5, 1fr); margin-bottom: 24px;">
+        <div class="kpi-card" style="--kpi-color: #3B82F6"><div class="kpi-value text-mono" id="stat-avg">—</div><div class="kpi-label">${t('avg')}</div></div>
+        <div class="kpi-card" style="--kpi-color: #22C55E"><div class="kpi-value text-mono" id="stat-max">—</div><div class="kpi-label">${t('max')}</div></div>
+        <div class="kpi-card" style="--kpi-color: #F59E0B"><div class="kpi-value text-mono" id="stat-min">—</div><div class="kpi-label">${t('min')}</div></div>
+        <div class="kpi-card" style="--kpi-color: #818CF8"><div class="kpi-value text-mono" id="stat-std">—</div><div class="kpi-label">${t('std')}</div></div>
+        <div class="kpi-card" style="--kpi-color: #EC4899"><div class="kpi-value text-mono" id="stat-count">—</div><div class="kpi-label">Jami</div></div>
+      </div>
+
+      <!-- Data Table -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📋 Ma'lumotlar jadvali</div>
+          <div class="text-sm text-muted" id="table-info"></div>
+        </div>
+        <div style="overflow-x:auto; max-height: 500px; overflow-y: auto;">
+          <table class="data-table" id="data-table">
+            <thead>
+              <tr>
+                <th>${t('date')}</th>
+                <th>${t('discharge')}</th>
+                <th>${t('precipitation')}</th>
+                <th>${t('temperature')}</th>
+                <th>${t('snow_cover')}</th>
+                <th>${t('evaporation')}</th>
+              </tr>
+            </thead>
+            <tbody id="table-body">
+              <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">
+                <div class="loading-spinner"></div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+`;
+initResponsive();
+
+let rivers = [];
+let currentData = [];
+
+async function init() {
+  rivers = await apiGet('/api/rivers') || [];
+  const select = document.getElementById('filter-river');
+  select.innerHTML = rivers.map(r => {
+    const name = r[`name_${currentLang}`] || r.name;
+    return `<option value="${r.id}">${name}</option>`;
+  }).join('');
+
+  const zarafshon = rivers.find(r => r.name === 'Zarafshon');
+  if (zarafshon) select.value = zarafshon.id;
+
+  loadData();
+}
+
+async function loadData() {
+  const riverId = document.getElementById('filter-river').value;
+  const start = document.getElementById('filter-start').value;
+  const end = document.getElementById('filter-end').value;
+
+  let url = `/api/rivers/${riverId}/data?limit=5000`;
+  if (start) url += `&start_date=${start}`;
+  if (end) url += `&end_date=${end}`;
+
+  currentData = await apiGet(url) || [];
+  currentData.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  renderTable();
+  updateStats();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('table-body');
+  if (currentData.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">${t('no_data')}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = currentData.map(row => `
+    <tr>
+      <td>${row.date ? row.date.split('T')[0] : '—'}</td>
+      <td style="color: var(--text-accent);">${formatNumber(row.discharge)}</td>
+      <td>${formatNumber(row.precipitation)}</td>
+      <td>${formatNumber(row.temperature)}</td>
+      <td>${formatNumber(row.snow_cover)}</td>
+      <td>${formatNumber(row.evaporation)}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('table-info').textContent = `${currentData.length} qator`;
+}
+
+function updateStats() {
+  if (currentData.length === 0) return;
+  const discharges = currentData.map(d => d.discharge).filter(v => v != null);
+
+  if (discharges.length === 0) return;
+  const avg = discharges.reduce((a, b) => a + b, 0) / discharges.length;
+  const max = Math.max(...discharges);
+  const min = Math.min(...discharges);
+  const std = Math.sqrt(discharges.reduce((sum, v) => sum + Math.pow(v - avg, 2), 0) / discharges.length);
+
+  document.getElementById('stat-avg').textContent = avg.toFixed(1);
+  document.getElementById('stat-max').textContent = max.toFixed(1);
+  document.getElementById('stat-min').textContent = min.toFixed(1);
+  document.getElementById('stat-std').textContent = std.toFixed(1);
+  document.getElementById('stat-count').textContent = currentData.length;
+}
+
+function exportData(format) {
+  const riverId = document.getElementById('filter-river').value;
+  const start = document.getElementById('filter-start').value;
+  const end = document.getElementById('filter-end').value;
+  let url = `/api/export?river_id=${riverId}&format=${format}`;
+  if (start) url += `&start_date=${start}`;
+  if (end) url += `&end_date=${end}`;
+  window.open(url, '_blank');
+}
+
+init();
+</script>
+</body>
+</html>

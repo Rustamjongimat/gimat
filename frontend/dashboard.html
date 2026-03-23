@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GIMAT — Dashboard</title>
+  <meta name="description" content="Real-time gidrologik monitoring dashboard — oqim, yog'in, harorat grafiklari">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+<div class="app-layout" id="app"></div>
+
+<script src="/static/js/app.js"></script>
+<script>
+document.getElementById('app').innerHTML = `
+  ${generateSidebar('dashboard')}
+  <div class="main-content">
+    ${generateHeader(t('dashboard_title'), 'dashboard_title')}
+    <div class="page-content">
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card" style="--kpi-color: #3B82F6">
+          <div class="kpi-icon" style="background: rgba(59,130,246,0.15); color: #60A5FA;">💧</div>
+          <div class="kpi-value" id="kpi-discharge">—</div>
+          <div class="kpi-label" data-i18n="discharge">${t('discharge')}</div>
+          <div class="kpi-change up" id="kpi-discharge-change"></div>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #22C55E">
+          <div class="kpi-icon" style="background: rgba(34,197,94,0.15); color: #22C55E;">🌧️</div>
+          <div class="kpi-value" id="kpi-precip">—</div>
+          <div class="kpi-label" data-i18n="precipitation">${t('precipitation')}</div>
+          <div class="kpi-change" id="kpi-precip-change"></div>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #F59E0B">
+          <div class="kpi-icon" style="background: rgba(245,158,11,0.15); color: #F59E0B;">🌡️</div>
+          <div class="kpi-value" id="kpi-temp">—</div>
+          <div class="kpi-label" data-i18n="temperature">${t('temperature')}</div>
+          <div class="kpi-change" id="kpi-temp-change"></div>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #818CF8">
+          <div class="kpi-icon" style="background: rgba(129,140,248,0.15); color: #818CF8;">❄️</div>
+          <div class="kpi-value" id="kpi-snow">—</div>
+          <div class="kpi-label" data-i18n="snow_cover">${t('snow_cover')}</div>
+          <div class="kpi-change" id="kpi-snow-change"></div>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #EC4899">
+          <div class="kpi-icon" style="background: rgba(236,72,153,0.15); color: #EC4899;">☀️</div>
+          <div class="kpi-value" id="kpi-evap">—</div>
+          <div class="kpi-label" data-i18n="evaporation">${t('evaporation')}</div>
+          <div class="kpi-change" id="kpi-evap-change"></div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="card mb-24">
+        <div class="card-header">
+          <div>
+            <div class="card-title">${t('river')} tanlash</div>
+          </div>
+          <div class="chart-controls">
+            <button class="chart-btn active" data-period="48" onclick="setPeriod(48, this)">${t('period_all')}</button>
+            <button class="chart-btn" data-period="12" onclick="setPeriod(12, this)">${t('period_1y')}</button>
+            <button class="chart-btn" data-period="6" onclick="setPeriod(6, this)">${t('period_6m')}</button>
+            <button class="chart-btn" data-period="1" onclick="setPeriod(1, this)">${t('period_1m')}</button>
+          </div>
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <select class="form-select" id="river-select" style="max-width: 300px;" onchange="loadRiverData()">
+            <option value="">Yuklanmoqda...</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="grid-2">
+        <div class="chart-container">
+          <div class="card-header">
+            <div class="card-title">📈 ${t('discharge')}</div>
+          </div>
+          <div id="chart-discharge" style="height:300px;"></div>
+        </div>
+        <div class="chart-container">
+          <div class="card-header">
+            <div class="card-title">🌧️ ${t('precipitation')}</div>
+          </div>
+          <div id="chart-precip" style="height:300px;"></div>
+        </div>
+        <div class="chart-container">
+          <div class="card-header">
+            <div class="card-title">🌡️ ${t('temperature')}</div>
+          </div>
+          <div id="chart-temp" style="height:300px;"></div>
+        </div>
+        <div class="chart-container">
+          <div class="card-header">
+            <div class="card-title">❄️ ${t('snow_cover')} & ${t('evaporation')}</div>
+          </div>
+          <div id="chart-snow" style="height:300px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+`;
+initResponsive();
+
+let currentPeriod = 48;
+let allData = [];
+let rivers = [];
+
+async function init() {
+  rivers = await apiGet('/api/rivers') || [];
+  const select = document.getElementById('river-select');
+  select.innerHTML = rivers.map(r => {
+    const name = r[`name_${currentLang}`] || r.name;
+    return `<option value="${r.id}">${name} (${r.station_count} st.)</option>`;
+  }).join('');
+
+  // Default to Zarafshon (id=3)
+  const zarafshon = rivers.find(r => r.name === 'Zarafshon');
+  if (zarafshon) select.value = zarafshon.id;
+
+  loadRiverData();
+}
+
+async function loadRiverData() {
+  const riverId = document.getElementById('river-select').value;
+  if (!riverId) return;
+
+  allData = await apiGet(`/api/rivers/${riverId}/data?limit=5000`) || [];
+  allData.sort((a, b) => new Date(a.date) - new Date(b.date));
+  renderCharts();
+}
+
+function setPeriod(months, btn) {
+  currentPeriod = months;
+  document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCharts();
+}
+
+function renderCharts() {
+  const data = allData.slice(-currentPeriod);
+  if (data.length === 0) return;
+
+  const dates = data.map(d => d.date.split('T')[0]);
+  const discharge = data.map(d => d.discharge);
+  const precip = data.map(d => d.precipitation);
+  const temps = data.map(d => d.temperature);
+  const snow = data.map(d => d.snow_cover);
+  const evap = data.map(d => d.evaporation);
+
+  // Update KPIs
+  const latest = data[data.length - 1];
+  document.getElementById('kpi-discharge').textContent = formatNumber(latest.discharge, 1);
+  document.getElementById('kpi-precip').textContent = formatNumber(latest.precipitation, 1);
+  document.getElementById('kpi-temp').textContent = formatNumber(latest.temperature, 1);
+  document.getElementById('kpi-snow').textContent = formatNumber(latest.snow_cover, 1);
+  document.getElementById('kpi-evap').textContent = formatNumber(latest.evaporation, 1);
+
+  // Discharge chart
+  Plotly.newPlot('chart-discharge', [{
+    x: dates, y: discharge, type: 'scatter', mode: 'lines',
+    line: { color: '#3B82F6', width: 2.5, shape: 'spline' },
+    fill: 'tozeroy', fillcolor: 'rgba(59,130,246,0.08)',
+    name: t('discharge')
+  }], { ...PLOTLY_LAYOUT, title: '' }, PLOTLY_CONFIG);
+
+  // Precipitation chart
+  Plotly.newPlot('chart-precip', [{
+    x: dates, y: precip, type: 'bar',
+    marker: { color: 'rgba(34,197,94,0.6)', line: { color: '#22C55E', width: 1 } },
+    name: t('precipitation')
+  }], { ...PLOTLY_LAYOUT, title: '' }, PLOTLY_CONFIG);
+
+  // Temperature chart
+  Plotly.newPlot('chart-temp', [{
+    x: dates, y: temps, type: 'scatter', mode: 'lines+markers',
+    line: { color: '#F59E0B', width: 2 }, marker: { size: 5, color: '#F59E0B' },
+    name: t('temperature')
+  }], { ...PLOTLY_LAYOUT, title: '' }, PLOTLY_CONFIG);
+
+  // Snow & Evaporation chart
+  Plotly.newPlot('chart-snow', [
+    {
+      x: dates, y: snow, type: 'scatter', mode: 'lines',
+      line: { color: '#818CF8', width: 2 }, fill: 'tozeroy', fillcolor: 'rgba(129,140,248,0.1)',
+      name: t('snow_cover')
+    },
+    {
+      x: dates, y: evap, type: 'scatter', mode: 'lines',
+      line: { color: '#EC4899', width: 2, dash: 'dot' },
+      name: t('evaporation'), yaxis: 'y2'
+    }
+  ], {
+    ...PLOTLY_LAYOUT,
+    yaxis2: { overlaying: 'y', side: 'right', gridcolor: 'rgba(255,255,255,0.03)', font: { color: '#94A3B8' } },
+    title: ''
+  }, PLOTLY_CONFIG);
+}
+
+init();
+</script>
+</body>
+</html>

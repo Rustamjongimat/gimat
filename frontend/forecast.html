@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GIMAT — AI Prognoz</title>
+  <meta name="description" content="LSTM+HBV gibrid model asosida daryo oqimi prognozi">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+<div class="app-layout" id="app"></div>
+
+<script src="/static/js/app.js"></script>
+<script>
+document.getElementById('app').innerHTML = `
+  ${generateSidebar('forecast')}
+  <div class="main-content">
+    ${generateHeader(t('forecast_title'), 'forecast_title')}
+    <div class="page-content">
+
+      <div class="grid-2" style="grid-template-columns: 350px 1fr;">
+        <!-- Input Panel -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">⚙️ Parametrlar</div></div>
+
+          <div class="form-group">
+            <label class="form-label" data-i18n="river">${t('river')}</label>
+            <select class="form-select" id="river-select">
+              <option value="">Yuklanmoqda...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" data-i18n="forecast_months">${t('forecast_months')}</label>
+            <select class="form-select" id="months-ahead">
+              <option value="3">3</option>
+              <option value="6" selected>6</option>
+              <option value="9">9</option>
+              <option value="12">12</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">${t('precipitation')} (mm)</label>
+            <input type="number" class="form-input" id="param-precip" placeholder="50" value="50">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">${t('temperature')} (°C)</label>
+            <input type="number" class="form-input" id="param-temp" placeholder="15" value="15">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">${t('snow_cover')} (%)</label>
+            <input type="number" class="form-input" id="param-snow" placeholder="30" value="30">
+          </div>
+
+          <button class="btn btn-primary w-full" onclick="runForecast()" id="btn-forecast">
+            🚀 <span data-i18n="run_forecast">${t('run_forecast')}</span>
+          </button>
+
+          <div class="mt-16" style="display: flex; gap: 8px;">
+            <button class="btn btn-outline btn-sm" onclick="exportForecast('csv')" style="flex:1;">📥 CSV</button>
+            <button class="btn btn-outline btn-sm" onclick="exportForecast('xlsx')" style="flex:1;">📥 Excel</button>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div>
+          <!-- Forecast Chart -->
+          <div class="chart-container mb-24">
+            <div class="card-header">
+              <div class="card-title">📈 Prognoz natijasi</div>
+              <div class="chart-controls">
+                <button class="chart-btn active" id="btn-hybrid" onclick="showModel('hybrid', this)">${t('model_hybrid')}</button>
+                <button class="chart-btn" id="btn-lstm" onclick="showModel('lstm', this)">${t('model_lstm')}</button>
+                <button class="chart-btn" id="btn-hbv" onclick="showModel('hbv', this)">${t('model_hbv')}</button>
+              </div>
+            </div>
+            <div id="chart-forecast" style="height: 400px;">
+              <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);">
+                Prognozni ishga tushiring...
+              </div>
+            </div>
+          </div>
+
+          <!-- Model Comparison -->
+          <div class="grid-3" id="metrics-grid" style="display:none;">
+            <div class="card" id="metrics-hybrid">
+              <div class="card-header">
+                <div class="card-title">🔬 ${t('model_hybrid')}</div>
+                <span class="badge badge-active">Tavsiya</span>
+              </div>
+              <div id="hybrid-metrics"></div>
+            </div>
+            <div class="card" id="metrics-lstm">
+              <div class="card-header">
+                <div class="card-title">🧠 ${t('model_lstm')}</div>
+              </div>
+              <div id="lstm-metrics"></div>
+            </div>
+            <div class="card" id="metrics-hbv">
+              <div class="card-header">
+                <div class="card-title">📐 ${t('model_hbv')}</div>
+              </div>
+              <div id="hbv-metrics"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+`;
+initResponsive();
+
+let forecastData = null;
+let currentModel = 'hybrid';
+
+async function init() {
+  const rivers = await apiGet('/api/rivers') || [];
+  const select = document.getElementById('river-select');
+  select.innerHTML = rivers.map(r => {
+    const name = r[`name_${currentLang}`] || r.name;
+    return `<option value="${r.id}">${name}</option>`;
+  }).join('');
+
+  const zarafshon = rivers.find(r => r.name === 'Zarafshon');
+  if (zarafshon) select.value = zarafshon.id;
+}
+
+async function runForecast() {
+  const btn = document.getElementById('btn-forecast');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loading-spinner" style="width:18px;height:18px;margin:0;border-width:2px;"></div> Hisoblanmoqda...';
+
+  try {
+    const payload = {
+      river_id: parseInt(document.getElementById('river-select').value),
+      months_ahead: parseInt(document.getElementById('months-ahead').value),
+      model_type: 'hybrid',
+      precipitation: parseFloat(document.getElementById('param-precip').value) || null,
+      temperature: parseFloat(document.getElementById('param-temp').value) || null,
+      snow_cover: parseFloat(document.getElementById('param-snow').value) || null
+    };
+
+    forecastData = await apiPost('/api/forecast/custom', payload);
+    showModel(currentModel, document.querySelector('.chart-btn.active'));
+    showMetrics();
+  } catch (err) {
+    alert(t('error') + ': ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `🚀 <span>${t('run_forecast')}</span>`;
+  }
+}
+
+function showModel(model, btn) {
+  currentModel = model;
+  document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  if (!forecastData) return;
+  const data = forecastData[model];
+  if (!data) return;
+
+  const now = new Date();
+  const labels = [];
+  for (let i = 0; i < data.months_ahead; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
+    labels.push(t('months')[d.getMonth()] + ' ' + d.getFullYear());
+  }
+
+  const traces = [
+    // Confidence interval (filled area)
+    {
+      x: [...labels, ...labels.slice().reverse()],
+      y: [...data.confidence_upper, ...data.confidence_lower.slice().reverse()],
+      fill: 'toself', fillcolor: 'rgba(59,130,246,0.1)',
+      line: { color: 'transparent' },
+      name: t('confidence_interval'), type: 'scatter', showlegend: true
+    },
+    // Main prediction line
+    {
+      x: labels, y: data.values, type: 'scatter', mode: 'lines+markers',
+      line: { color: '#3B82F6', width: 3, shape: 'spline' },
+      marker: { size: 7, color: '#3B82F6', line: { color: '#fff', width: 1 } },
+      name: model.toUpperCase() + ' prognoz'
+    }
+  ];
+
+  Plotly.newPlot('chart-forecast', traces, {
+    ...PLOTLY_LAYOUT,
+    yaxis: { ...PLOTLY_LAYOUT.yaxis, title: { text: 'm³/s', font: { color: '#94A3B8', size: 12 } } },
+    showlegend: true,
+    legend: { ...PLOTLY_LAYOUT.legend, orientation: 'h', y: -0.15 }
+  }, PLOTLY_CONFIG);
+}
+
+function showMetrics() {
+  if (!forecastData) return;
+  document.getElementById('metrics-grid').style.display = 'grid';
+
+  ['hybrid', 'lstm', 'hbv'].forEach(model => {
+    const m = forecastData[model]?.metrics;
+    if (!m) return;
+    const el = document.getElementById(`${model}-metrics`);
+    el.innerHTML = `
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="card" style="padding:12px; background: var(--bg-surface); border: none;">
+          <div class="text-xs text-muted">RMSE</div>
+          <div class="text-mono" style="font-size:18px; font-weight:700; color: ${m.rmse < 20 ? 'var(--success)' : 'var(--warning)'};">${m.rmse.toFixed(2)}</div>
+        </div>
+        <div class="card" style="padding:12px; background: var(--bg-surface); border: none;">
+          <div class="text-xs text-muted">MAE</div>
+          <div class="text-mono" style="font-size:18px; font-weight:700; color: ${m.mae < 15 ? 'var(--success)' : 'var(--warning)'};">${m.mae.toFixed(2)}</div>
+        </div>
+        <div class="card" style="padding:12px; background: var(--bg-surface); border: none;">
+          <div class="text-xs text-muted">NSE</div>
+          <div class="text-mono" style="font-size:18px; font-weight:700; color: ${m.nse >= 0.75 ? 'var(--success)' : 'var(--warning)'};">${m.nse.toFixed(3)}</div>
+        </div>
+        <div class="card" style="padding:12px; background: var(--bg-surface); border: none;">
+          <div class="text-xs text-muted">R²</div>
+          <div class="text-mono" style="font-size:18px; font-weight:700; color: ${m.r2 >= 0.80 ? 'var(--success)' : 'var(--warning)'};">${m.r2.toFixed(3)}</div>
+        </div>
+      </div>
+    `;
+  });
+}
+
+function exportForecast(format) {
+  const riverId = document.getElementById('river-select').value;
+  window.open(`/api/export?river_id=${riverId}&format=${format}`, '_blank');
+}
+
+init();
+</script>
+</body>
+</html>
