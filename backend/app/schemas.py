@@ -66,6 +66,15 @@ class HydroDataResponse(BaseModel):
         from_attributes = True
 
 
+class HydroDataCreate(BaseModel):
+    station_id: int
+    date: datetime
+    discharge: Optional[float] = None
+    precipitation: Optional[float] = None
+    temperature: Optional[float] = None
+    snow_cover: Optional[float] = None
+    evaporation: Optional[float] = None
+
 # ─── Forecast Schemas ───
 class ForecastRequest(BaseModel):
     river_id: int

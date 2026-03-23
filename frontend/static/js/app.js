@@ -340,6 +340,12 @@ function generateSidebar(activePage) {
           <span class="icon">👤</span>
           <span data-i18n="nav_profile">${t('nav_profile')}</span>
         </a>
+        ${['super_admin', 'admin', 'operator'].includes(user.role) ? `
+        <a href="/admin" class="nav-link ${activePage === 'admin' ? 'active' : ''}" style="border-left: 2px solid #F59E0B;">
+          <span class="icon">⚙️</span>
+          <span>Boshqaruv (Admin)</span>
+        </a>
+        ` : ''}
         <a href="#" onclick="logout()" class="nav-link">
           <span class="icon">🚪</span>
           <span>Chiqish</span>
@@ -417,3 +423,99 @@ const PLOTLY_LAYOUT = {
 };
 
 const PLOTLY_CONFIG = { responsive: true, displayModeBar: false };
+
+// ─── WebSockets (Real-time Updates) ───
+let ws;
+function connectWebSocket() {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  // Fallback to origin or use backend URL if API_BASE is set
+  const wsUrl = API_BASE ? API_BASE.replace(/^http/, 'ws') + '/ws' : `${protocol}//${window.location.host}/ws`;
+  
+  ws = new WebSocket(wsUrl);
+  
+  ws.onopen = () => console.log('WebSocket connected');
+  
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      handleRealTimeEvent(data.type, data.payload);
+    } catch (e) {
+      console.error('Error parsing WS message:', e);
+    }
+  };
+  
+  ws.onclose = () => {
+    console.log('WebSocket disconnected. Reconnecting in 5s...');
+    setTimeout(connectWebSocket, 5000);
+  };
+  
+  // Keep connection alive
+  setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) ws.send("ping");
+  }, 30000);
+}
+
+function handleRealTimeEvent(type, payload) {
+  if (type === 'new_data') {
+    showToast(`🚰 Yangi ma'lumot tushdi: Stansiya #${payload.station_id} -> Oqim: ${payload.discharge} m³/s`, 'info');
+    // If we're on dashboard and matching river, reload data
+    if (window.location.pathname === '/dashboard') {
+      const currentRiver = document.getElementById('river-select')?.value;
+      if (currentRiver) loadRiverData(); // Refresh chart
+    }
+    // If on map, refresh stations
+    if (window.location.pathname === '/' && typeof loadStations === 'function') {
+      loadStations();
+    }
+  } else if (type === 'new_alert') {
+    const levelIcon = payload.level === 'danger' ? '🚨' : '⚠️';
+    showToast(`${levelIcon} Diqqat, Toshqin xavfi! ${payload.station_name} — Oqim: ${payload.value} m³/s`, 'danger');
+    
+    // Update badge in sidebar everywhere
+    const alertCount = document.getElementById('alert-count');
+    if (alertCount) {
+      alertCount.textContent = parseInt(alertCount.textContent || '0') + 1;
+      alertCount.classList.add('pulse-marker'); // Add glowing effect
+    }
+    
+    // Refresh if on alerts page
+    if (window.location.pathname === '/alerts' && typeof init === 'function') {
+      init();
+    }
+  }
+}
+
+// ─── UI Helpers ───
+function showToast(message, type = 'info') {
+  // Create toast container if it doesn't exist
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    container.style = 'position:fixed; bottom:24px; right:24px; z-index:9999; display:flex; flex-direction:column; gap:12px;';
+    document.body.appendChild(container);
+  }
+  
+  const toast = document.createElement('div');
+  const bg = type === 'danger' ? '#EF4444' : type === 'warning' ? '#F59E0B' : '#3B82F6';
+  toast.style = `background: ${bg}; color: white; padding: 16px; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); font-weight: 500; font-size: 14px; transform: translateX(120%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); width: 320px; line-height: 1.5;`;
+  toast.innerHTML = message;
+  
+  container.appendChild(toast);
+  
+  // Simple entry animation
+  requestAnimationFrame(() => {
+    toast.style.transform = 'translateX(0)';
+  });
+  
+  // Remove after 6 seconds
+  setTimeout(() => {
+    toast.style.transform = 'translateX(120%)';
+    setTimeout(() => toast.remove(), 300);
+  }, 6000);
+}
+
+// Start WebSocket if user is logged in
+if (isLoggedIn()) {
+  connectWebSocket();
+}

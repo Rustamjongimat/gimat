@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from .database import engine, SessionLocal, Base
-from .routers import rivers, stations, forecast, alerts, auth, export, reports
+from .routers import rivers, stations, forecast, alerts, auth, export, reports, ws, admin
 from .seed_data import seed_database
 import os
 
@@ -42,6 +42,8 @@ app.include_router(alerts.router)
 app.include_router(auth.router)
 app.include_router(export.router)
 app.include_router(reports.router)
+app.include_router(ws.router)
+app.include_router(admin.router)
 
 # Mount static files (CSS, JS, images)
 if os.path.exists(os.path.join(FRONTEND_DIR, "static")):
@@ -100,6 +102,9 @@ def serve_register():
 def serve_profile():
     return FileResponse(os.path.join(FRONTEND_DIR, "profile.html"))
 
+@app.get("/admin", include_in_schema=False)
+def serve_admin():
+    return FileResponse(os.path.join(FRONTEND_DIR, "admin.html"))
 
 # API info endpoints
 @app.get("/api/health", tags=["Health"])
