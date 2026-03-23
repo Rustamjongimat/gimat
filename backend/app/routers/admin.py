@@ -3,7 +3,8 @@
 GIMAT — Admin API Router
 Handles manual data entry and real-time triggers via WebSockets
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+import pandas as pd
 from sqlalchemy.orm import Session
 from datetime import datetime
 from ..database import get_db
@@ -22,6 +23,58 @@ def verify_admin(current_user: models.User = Depends(get_current_user)):
             detail="You do not have permission to perform this action"
         )
     return current_user
+
+
+@router.post("/upload-data")
+async def upload_bulk_data(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(verify_admin)
+):
+    """Upload bulk historical hydro data via Excel/CSV"""
+    if not file.filename.endswith(('.csv', '.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="Faqat CSV yoki Excel fayllar qabul qilinadi")
+
+    try:
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(file.file)
+        else:
+            df = pd.read_excel(file.file)
+            
+        required_cols = ['station_id', 'date', 'discharge']
+        if not all(col in df.columns for col in required_cols):
+            raise ValueError(f"Faylda quyidagi ustunlar bo'lishi shart: {', '.join(required_cols)}")
+
+        records = []
+        for _, row in df.iterrows():
+            try:
+                dt = pd.to_datetime(row['date'])
+                records.append(models.HydroData(
+                    station_id=int(row['station_id']),
+                    date=dt,
+                    discharge=float(row['discharge']) if pd.notna(row['discharge']) else None,
+                    precipitation=float(row['precipitation']) if 'precipitation' in df.columns and pd.notna(row['precipitation']) else None,
+                    temperature=float(row['temperature']) if 'temperature' in df.columns and pd.notna(row['temperature']) else None,
+                    snow_cover=float(row['snow_cover']) if 'snow_cover' in df.columns and pd.notna(row['snow_cover']) else None,
+                    evaporation=float(row['evaporation']) if 'evaporation' in df.columns and pd.notna(row['evaporation']) else None
+                ))
+            except Exception as e:
+                print(f"Skipping row due to error: {e}")
+
+        if not records:
+            raise ValueError("Yaroqli ma'lumotlar topilmadi")
+
+        db.add_all(records)
+        db.commit()
+        
+        # Trigger generic refresh broadcast
+        await manager.broadcast("new_data", {"station_id": records[-1].station_id, "discharge": records[-1].discharge})
+        
+        return {"success": True, "message": f"{len(records)} ta yozuv muvaffaqiyatli saqlandi!"}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/data", response_model=schemas.HydroDataResponse)

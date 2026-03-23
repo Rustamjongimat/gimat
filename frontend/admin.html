@@ -83,15 +83,38 @@ document.getElementById('app').innerHTML = `
           <p style="color:var(--text-muted); font-size:14px; margin-bottom:16px;">
             Haqiqiy foydalanuvchilarga sayt o'z-o'zidan yangilanishini ko'rsatish uchun Real-time Toshqin signalini sinab ko'rish.
           </p>
-          <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); padding:16px; border-radius:8px;">
+          <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); padding:16px; border-radius:8px; margin-bottom:24px;">
             <p style="color:#EF4444; font-weight:600; margin-bottom:8px;">Xavfli darajani simulyatsiya qilish</p>
             <p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px;">
-              Bu tugma Zarafshon daryosidagi (Navoiy stansiyasi) oqimni keskin ko'tarib (masalan 400 m³/s ga), barcha ulangan brauzerlarga tezkor XAVF signali jo'natadi.
+              Bu tugma Zarafshon daryosidagi oqimni keskin ko'tarib barcha brauzerlarga tezkor XAVF signali jo'natadi.
             </p>
             <button onclick="simulateFlood()" class="btn" style="background:#EF4444; color:white; width:100%;">
               🚨 Toshqin Signalini Yuborish (Live)
             </button>
           </div>
+
+          <div class="card-header">
+            <h3 class="card-title">Bulk Ma'lumot Yuklash (Excel/CSV)</h3>
+          </div>
+          <p style="color:var(--text-muted); font-size:14px; margin-bottom:12px;">
+            Bir necha yillik (yoki oylik) tarixiy ma'lumotlarni birdaniga bazaga yozish uchun Excel faylini yuklang. 
+          </p>
+          <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:6px; font-size:12px; margin-bottom:16px; font-family:monospace; color:var(--text-secondary);">
+            Talab qilinadigan ustunlar: <br>
+            <span style="color:#60A5FA;">station_id, date, discharge</span><br>
+            Qo'shimcha ustunlar (ixtiyoriy): <br>
+            <span style="color:#94A3B8;">precipitation, temperature, snow_cover, evaporation</span>
+          </div>
+          
+          <form id="upload-form" onsubmit="uploadBulkData(event)">
+            <div class="form-group">
+              <input type="file" id="bulk_file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="form-input" required style="padding-top: 6px;">
+            </div>
+            <button type="submit" class="btn btn-outline" style="width:100%;">
+              📁 Csv/Excel Faylni Yuklash
+            </button>
+            <div id="upload-msg" style="margin-top:12px; text-align:center; font-size:14px; display:none;"></div>
+          </form>
         </div>
       </div>
 
@@ -163,6 +186,50 @@ async function simulateFlood() {
     alert("Signal barcha foydalanuvchilarga jo'natildi! Dashbordni boshqa tabda tekshiring.");
   } catch (e) {
     alert("Xato: " + e.message);
+  }
+}
+
+async function uploadBulkData(e) {
+  e.preventDefault();
+  const fileInput = document.getElementById('bulk_file');
+  const btn = e.target.querySelector('button');
+  const msg = document.getElementById('upload-msg');
+  
+  if (!fileInput.files.length) return;
+  
+  btn.disabled = true;
+  btn.textContent = "Yuklanmoqda...";
+  msg.style.display = 'none';
+
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+
+  try {
+    const token = localStorage.getItem('gimat-token');
+    // Using native fetch since apiPost uses JSON payload
+    const res = await fetch('/api/admin/upload-data', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+    
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.detail || 'Xatolik yuz berdi');
+
+    msg.style.display = 'block';
+    msg.style.color = 'var(--success)';
+    msg.textContent = "✅ " + result.message;
+    fileInput.value = ''; // Reset file input
+    setTimeout(() => { msg.style.display = 'none'; }, 6000);
+  } catch (err) {
+    msg.style.display = 'block';
+    msg.style.color = 'var(--danger)';
+    msg.textContent = "❌ " + (err.message || 'Faylni o`qishda xatolik');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "📁 Csv/Excel Faylni Yuklash";
   }
 }
 
