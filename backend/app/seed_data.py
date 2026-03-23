@@ -290,11 +290,12 @@ def seed_database(db: Session):
     # Check if admin user exists, if not create one
     admin_exist = db.query(models.User).filter(models.User.email == "admin@gimat.uz").first()
     if not admin_exist:
-        from passlib.context import CryptContext
-        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        import bcrypt
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw("admin123".encode("utf-8"), salt).decode("utf-8")
         admin = models.User(
             email="admin@gimat.uz",
-            hashed_password=pwd_context.hash("admin123"),
+            hashed_password=hashed,
             name="Super Admin",
             role="super_admin"
         )

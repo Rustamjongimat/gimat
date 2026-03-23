@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from ..database import get_db
 from .. import models, schemas
@@ -18,7 +18,16 @@ SECRET_KEY = os.getenv("SECRET_KEY", "gimat-secret-key-change-in-production-2025
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def get_password_hash(password: str) -> str:
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    try:
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    except ValueError:
+        return False
+
 security = HTTPBearer(auto_error=False)
 
 
@@ -58,7 +67,7 @@ def register(user_data: schemas.UserRegister, db: Session = Depends(get_db)):
 
     user = models.User(
         email=user_data.email,
-        hashed_password=pwd_context.hash(user_data.password),
+        hashed_password=get_password_hash(user_data.password),
         name=user_data.name,
         lang=user_data.lang,
         role="user"
@@ -78,7 +87,7 @@ def register(user_data: schemas.UserRegister, db: Session = Depends(get_db)):
 def login(user_data: schemas.UserLogin, db: Session = Depends(get_db)):
     """Login and get JWT token"""
     user = db.query(models.User).filter(models.User.email == user_data.email).first()
-    if not user or not pwd_context.verify(user_data.password, user.hashed_password):
+    if not user or not verify_password(user_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = create_access_token({"sub": user.email})
