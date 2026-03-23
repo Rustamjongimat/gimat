@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from .database import engine, SessionLocal, Base
-from .routers import rivers, stations, forecast, alerts, auth, export
+from .routers import rivers, stations, forecast, alerts, auth, export, reports
 from .seed_data import seed_database
 import os
 
@@ -41,6 +41,7 @@ app.include_router(forecast.router)
 app.include_router(alerts.router)
 app.include_router(auth.router)
 app.include_router(export.router)
+app.include_router(reports.router)
 
 # Mount static files (CSS, JS, images)
 if os.path.exists(os.path.join(FRONTEND_DIR, "static")):

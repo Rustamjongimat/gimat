@@ -1,0 +1,124 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Amudaryo", "name_uz": "Amudaryo", "name_ru": "Амударья", "name_en": "Amu Darya", "length_km": 2540 },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [67.28, 37.22], [67.10, 37.45], [66.80, 37.65], [66.20, 37.90],
+          [65.75, 38.10], [65.30, 38.30], [64.80, 38.55], [64.20, 38.80],
+          [63.60, 39.10], [63.06, 39.38], [62.50, 39.52], [62.01, 39.55],
+          [61.88, 40.22], [61.59, 41.23], [61.20, 41.50], [61.00, 41.60],
+          [60.65, 41.76], [60.20, 42.00], [59.80, 42.20], [59.60, 42.40],
+          [59.20, 42.80], [58.80, 43.20], [58.60, 43.50], [58.40, 43.78]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Sirdaryo", "name_uz": "Sirdaryo", "name_ru": "Сырдарья", "name_en": "Syr Darya", "length_km": 2212 },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [71.04, 41.12], [70.50, 41.00], [70.14, 41.02], [69.71, 41.08],
+          [69.27, 40.22], [69.00, 40.35], [68.76, 40.54], [68.30, 40.70],
+          [67.84, 40.80], [67.50, 40.90], [67.00, 41.00], [66.50, 41.20],
+          [66.00, 41.35], [65.50, 41.50], [65.00, 41.65], [64.50, 41.80],
+          [64.00, 42.00], [63.50, 42.20], [63.00, 42.40]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Zarafshon", "name_uz": "Zarafshon", "name_ru": "Зарафшан", "name_en": "Zarafshan", "length_km": 877 },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [68.80, 39.45], [68.50, 39.48], [68.20, 39.50], [67.85, 39.52],
+          [67.50, 39.55], [67.20, 39.58], [66.96, 39.65], [66.60, 39.70],
+          [66.30, 39.75], [66.00, 39.80], [65.70, 39.85], [65.35, 39.90],
+          [65.00, 39.92], [64.70, 39.95], [64.40, 39.98], [64.10, 40.00]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Chirchiq", "name_uz": "Chirchiq", "name_ru": "Чирчик", "name_en": "Chirchik", "length_km": 161 },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [70.10, 41.68], [69.90, 41.60], [69.71, 41.51], [69.50, 41.40],
+          [69.35, 41.35], [69.28, 41.31], [69.15, 41.25], [69.05, 41.20]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Qashqadaryo", "name_uz": "Qashqadaryo", "name_ru": "Кашкадарья", "name_en": "Kashkadarya", "length_km": 378 },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [67.40, 39.10], [67.20, 39.00], [66.88, 38.93], [66.50, 38.88],
+          [66.20, 38.85], [65.80, 38.86], [65.40, 38.85], [65.00, 38.80]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Surxondaryo", "name_uz": "Surxondaryo", "name_ru": "Сурхандарья", "name_en": "Surkhandarya", "length_km": 175 },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [68.20, 38.60], [68.00, 38.45], [67.89, 38.27], [67.70, 38.10],
+          [67.50, 37.90], [67.28, 37.50], [67.15, 37.30], [67.00, 37.15]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Naryn", "name_uz": "Naryn", "name_ru": "Нарын", "name_en": "Naryn", "length_km": 807 },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [71.50, 41.30], [71.20, 41.15], [71.04, 41.12], [70.80, 41.05],
+          [70.50, 41.00]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Ohangaron", "name_uz": "Ohangaron", "name_ru": "Ахангаран", "name_en": "Akhangaran", "length_km": 236 },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [70.30, 41.20], [70.14, 41.07], [69.90, 41.00], [69.64, 41.07],
+          [69.40, 41.10], [69.20, 41.15]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Angren", "name_uz": "Angren", "name_ru": "Ангрен", "name_en": "Angren", "length_km": 185 },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [70.40, 41.15], [70.14, 41.02], [69.90, 40.95], [69.70, 40.88],
+          [69.50, 40.80]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Sangzor", "name_uz": "Sangzor", "name_ru": "Сангзар", "name_en": "Sangzar", "length_km": 198 },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [68.20, 40.00], [68.00, 40.05], [67.84, 40.12], [67.60, 40.15],
+          [67.40, 40.18]
+        ]
+      }
+    }
+  ]
+}

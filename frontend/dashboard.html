@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GIMAT — Dashboard</title>
+  <meta property="og:title" content="GIMAT — Gidrologik Monitoring">
+  <meta property="og:description" content="O'zbekiston daryolari uchun real-time monitoring, AI prognoz va toshqin ogohlantirish tizimi">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>">
   <meta name="description" content="Real-time gidrologik monitoring dashboard — oqim, yog'in, harorat grafiklari">
   <link rel="stylesheet" href="/static/css/style.css">
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
@@ -66,10 +70,13 @@ document.getElementById('app').innerHTML = `
             <button class="chart-btn" data-period="1" onclick="setPeriod(1, this)">${t('period_1m')}</button>
           </div>
         </div>
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
           <select class="form-select" id="river-select" style="max-width: 300px;" onchange="loadRiverData()">
             <option value="">Yuklanmoqda...</option>
           </select>
+          <a href="#" id="btn-report" class="btn btn-outline" target="_blank" style="text-decoration:none; display:none;">
+            📄 PDF Hisobot
+          </a>
         </div>
       </div>
 
@@ -127,6 +134,11 @@ async function init() {
 async function loadRiverData() {
   const riverId = document.getElementById('river-select').value;
   if (!riverId) return;
+
+  // Update report button link
+  const btnReport = document.getElementById('btn-report');
+  btnReport.href = `/api/reports/${riverId}`;
+  btnReport.style.display = 'inline-block';
 
   allData = await apiGet(`/api/rivers/${riverId}/data?limit=5000`) || [];
   allData.sort((a, b) => new Date(a.date) - new Date(b.date));
