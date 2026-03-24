@@ -7,6 +7,7 @@ const ASSETS_TO_CACHE = [
   '/static/img/icon.svg',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+  'https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js',
   'https://cdn.plot.ly/plotly-2.30.0.min.js'
 ];
 
