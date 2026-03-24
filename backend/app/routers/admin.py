@@ -77,6 +77,34 @@ async def upload_bulk_data(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.post("/train-model")
+async def train_ai_model(admin: models.User = Depends(verify_admin)):
+    """Trigger the real ML pipeline to retrain the Neural Network (MLP)"""
+    import asyncio
+    from ..services.train_model import train_hydro_model
+    
+    try:
+        # Run training in a separate thread to prevent blocking the async event loop
+        metrics = await asyncio.to_thread(train_hydro_model)
+        
+        # Broadcast that the AI model was updated
+        await manager.broadcast("new_alert", {
+            "station_name": "Tizim",
+            "level": "info",
+            "value": f"A.I Model muvaffaqiyatli yangilandi. R² = {metrics['r2']:.2f}"
+        })
+        
+        return {
+            "success": True, 
+            "message": "Neyron tarmoq modeli muvaffaqiyatli o'qitildi!", 
+            "metrics": metrics
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Model o'qitishda xatolik: {str(e)}")
+
+
 @router.post("/data", response_model=schemas.HydroDataResponse)
 async def add_hydro_data(
     data: schemas.HydroDataCreate,

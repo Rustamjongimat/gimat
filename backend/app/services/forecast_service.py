@@ -22,6 +22,11 @@ MODEL_PARAMS = {
 }
 
 
+import os
+import joblib
+
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "ml_models", "hybrid_model.pkl")
+
 def generate_forecast(
     db: Session,
     river_id: int,
@@ -31,56 +36,87 @@ def generate_forecast(
     temp: Optional[float] = None,
     snow: Optional[float] = None
 ) -> models.Forecast:
-    """Generate a simulated forecast for a river"""
-
-    params = MODEL_PARAMS.get(model_type, MODEL_PARAMS["hybrid"])
+    """Generate forecast using real MLP model if exists, else fallback to simulation"""
+    
     now = datetime.utcnow()
     current_month = now.month
-
-    # Generate predicted values
-    np.random.seed(int(now.timestamp()) % 10000 + hash(model_type) % 100)
+    
+    # Check for real model
+    use_real_model = False
+    model_payload = None
+    if os.path.exists(MODEL_PATH) and model_type == "hybrid":
+        try:
+            model_payload = joblib.load(MODEL_PATH)
+            use_real_model = True
+        except Exception as e:
+            print(f"Failed to load real ML model: {e}")
 
     values = []
     lower = []
     upper = []
+    
+    params = MODEL_PARAMS.get(model_type, MODEL_PARAMS["hybrid"])
+    
+    if use_real_model:
+        # ---- REAL ML PIPELINE PREDICTION ----
+        mlp = model_payload["model"]
+        scaler = model_payload["scaler"]
+        
+        # We need a generic station_id. Fetch a station belonging to this river
+        station = db.query(models.Station).filter(models.Station.river_id == river_id).first()
+        station_id = station.id if station else 1
+        
+        for i in range(months_ahead):
+            month_idx = ((current_month + i - 1) % 12) + 1  # 1-12
+            
+            # Use given params, fallback to historical monthly averages
+            p_val = precip if precip is not None else 30.0 + (month_idx % 4) * 10
+            t_val = temp if temp is not None else 15.0 + (6 - abs(month_idx - 6)) * 4
+            s_val = snow if snow is not None else max(0, 20.0 - (month_idx % 6) * 5)
+            
+            # Predict
+            X_input = scaler.transform([[station_id, month_idx, p_val, t_val, s_val]])
+            prediction = mlp.predict(X_input)[0]
+            predicted = max(0, float(prediction))
+            
+            rmse = model_payload["metrics"]["rmse"]
+            ci_width = rmse * (1 + i * 0.1)
+            
+            values.append(round(predicted, 2))
+            lower.append(round(max(0, predicted - 1.96 * ci_width), 2))
+            upper.append(round(predicted + 1.96 * ci_width, 2))
+            
+        metrics = model_payload["metrics"]
+            
+    else:
+        # ---- SIMULATION FALLBACK PIPELINE ----
+        np.random.seed(int(now.timestamp()) % 10000 + hash(model_type) % 100)
+        
+        for i in range(months_ahead):
+            month_idx = (current_month + i) % 12
+            base = ZARAFSHON_MONTHLY_MEAN[month_idx]
+            std = ZARAFSHON_MONTHLY_STD[month_idx]
 
-    for i in range(months_ahead):
-        month_idx = (current_month + i) % 12
-        base = ZARAFSHON_MONTHLY_MEAN[month_idx]
-        std = ZARAFSHON_MONTHLY_STD[month_idx]
+            if precip is not None: base *= (1 + (precip - 50) / 200)
+            if temp is not None: base *= (1 + (temp - 15) / 100)
+            if snow is not None: base *= (1 + (snow - 30) / 150)
 
-        # Apply user parameter adjustments
-        if precip is not None:
-            base *= (1 + (precip - 50) / 200)  # precip effect
-        if temp is not None:
-            base *= (1 + (temp - 15) / 100)  # temp effect on snowmelt
-        if snow is not None:
-            base *= (1 + (snow - 30) / 150)  # snow cover effect
+            noise = np.random.normal(0, std * params["noise_factor"])
+            predicted = max(0, base + noise)
 
-        # Add model-specific noise
-        noise = np.random.normal(0, std * params["noise_factor"])
-        predicted = max(0, base + noise)
+            ci_width = std * (1 + i * 0.15) * (1 + params["noise_factor"])
+            
+            values.append(round(predicted, 2))
+            lower.append(round(max(0, predicted - 1.96 * ci_width), 2))
+            upper.append(round(predicted + 1.96 * ci_width, 2))
 
-        # Confidence intervals widen over time
-        ci_width = std * (1 + i * 0.15) * (1 + params["noise_factor"])
-        ci_lower = max(0, predicted - 1.96 * ci_width)
-        ci_upper = predicted + 1.96 * ci_width
-
-        values.append(round(predicted, 2))
-        lower.append(round(ci_lower, 2))
-        upper.append(round(ci_upper, 2))
-
-    # Calculate metrics
-    mean_discharge = np.mean(ZARAFSHON_MONTHLY_MEAN)
-    rmse = round(mean_discharge * params["rmse_factor"], 2)
-    mae = round(mean_discharge * params["mae_factor"], 2)
-
-    metrics = {
-        "rmse": rmse,
-        "mae": mae,
-        "nse": params["nse"],
-        "r2": params["r2"]
-    }
+        mean_discharge = np.mean(ZARAFSHON_MONTHLY_MEAN)
+        metrics = {
+            "rmse": round(mean_discharge * params["rmse_factor"], 2),
+            "mae": round(mean_discharge * params["mae_factor"], 2),
+            "nse": params["nse"],
+            "r2": params["r2"]
+        }
 
     # Save forecast to DB
     forecast = models.Forecast(

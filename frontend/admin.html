@@ -120,6 +120,27 @@ document.getElementById('app').innerHTML = `
             <div id="upload-msg" style="margin-top:12px; text-align:center; font-size:14px; display:none;"></div>
           </form>
         </div>
+
+        <!-- ML Training Panel -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">A.I Neyron Tarmog'ini O'qitish</h3>
+          </div>
+          <p style="color:var(--text-muted); font-size:14px; margin-bottom:12px;">
+            Haqiqiy ma'lumotlarni bazaga yuklaganingizdan so'ng, A.I modelni (Multi-Layer Perceptron) yangi ma'lumotlar bilan qayta o'qitishingiz kerak.
+          </p>
+          <div style="background:rgba(59, 130, 246, 0.1); border:1px solid rgba(59, 130, 246, 0.2); padding:16px; border-radius:8px; margin-bottom:16px;">
+            <p style="color:#3B82F6; font-weight:600; margin-bottom:8px;">Real-time MLOps</p>
+            <p style="font-size:13px; color:var(--text-secondary);">
+              Ushbu jarayon bazadagi barcha tarixiy qatorlarni (precipitation, temp, discharge) o'qiydi va "hybrid_model.pkl" formatida xotiraga saqlaydi. "AI Forecast" bo'limi avtomatik o'zgaradi.
+            </p>
+          </div>
+          
+          <button onclick="trainModel(this)" class="btn btn-primary" style="width:100%;">
+            🧠 A.I Modelni Qayta O'qitish (Train)
+          </button>
+          <div id="train-msg" style="margin-top:12px; text-align:center; font-size:14px; display:none;"></div>
+        </div>
       </div>
 
     </div>
@@ -234,6 +255,38 @@ async function uploadBulkData(e) {
   } finally {
     btn.disabled = false;
     btn.textContent = "📁 Csv/Excel Faylni Yuklash";
+  }
+}
+
+async function trainModel(btn) {
+  const msg = document.getElementById('train-msg');
+  btn.disabled = true;
+  const originalText = btn.innerHTML;
+  btn.innerHTML = "⏳ Model O'qitilmoqda (Kuting...)";
+  msg.style.display = 'block';
+  msg.style.color = 'var(--text-secondary)';
+  msg.textContent = "Barcha tarixiy ma'lumotlar tahlil qilinib, Neyron Tarmoq o'zini o'zi o'rgatmoqda. Bu jarayon biroz vaqt olishi mumkin...";
+
+  try {
+    const token = localStorage.getItem('gimat-token');
+    const res = await fetch('/api/admin/train-model', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.detail || "O'qitishda xatolik yuz berdi");
+
+    msg.style.color = 'var(--success)';
+    msg.textContent = `✅ ${result.message} (Aniqlik R²: ${result.metrics.r2.toFixed(3)})`;
+  } catch (err) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = "❌ Xato: " + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
   }
 }
 
