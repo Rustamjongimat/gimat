@@ -86,6 +86,7 @@
       background-color: #f3f4f6;
       font-weight: bold;
       -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     
     .report-signatures {
@@ -134,25 +135,25 @@
   </style>
 </head>
 <body>
-<div class="app-layout" id="app"></div>
-
-<script src="/static/js/app.js"></script>
-<script>
-document.getElementById('app').innerHTML = `
-  ${generateSidebar('reports')}
+<div class="app-layout" id="app">
+  <!-- Sidebar Inject -->
+  <div id="sidebar-root"></div>
+  
   <div class="main-content">
-    ${generateHeader(t('nav_reports'), 'nav_reports')}
+    <!-- Header Inject -->
+    <div id="header-root"></div>
+    
     <div class="page-content">
       
       <!-- Report Generator Form -->
       <div class="card mb-24 no-print">
         <div class="card-header">
-          <h3 class="card-title">🖨️ Hisobot Parametrlari</h3>
+          <h3 class="card-title">🖨️ <span data-i18n="nav_reports">Hisobot Parametrlari</span></h3>
           <button class="btn btn-danger btn-sm" onclick="window.print()" id="printBtn" style="display:none;">📄 PDF ga chop etish (Print)</button>
         </div>
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; align-items: end;">
           <div class="form-group" style="margin:0;">
-            <label class="form-label">${t('river')}</label>
+            <label class="form-label" data-i18n="river">Daryo</label>
             <select class="form-select" id="report-river"></select>
           </div>
           <div class="form-group" style="margin:0;">
@@ -247,8 +248,14 @@ document.getElementById('app').innerHTML = `
 
     </div>
   </div>
-`;
-initResponsive();
+</div>
+
+<script src="/static/js/app.js"></script>
+<script>
+  // Dynamic UI Injections
+  document.getElementById('sidebar-root').outerHTML = generateSidebar('reports');
+  document.getElementById('header-root').outerHTML = generateHeader(t('nav_reports'), 'nav_reports');
+  initResponsive();
 
 let rivers = [];
 
@@ -256,8 +263,8 @@ async function init() {
   rivers = await apiGet('/api/rivers') || [];
   const select = document.getElementById('report-river');
   select.innerHTML = rivers.map(r => {
-    const name = r[`name_${currentLang}`] || r.name;
-    return `<option value="${r.id}">${name}</option>`;
+    const name = r['name_' + currentLang] || r.name;
+    return '<option value="' + r.id + '">' + name + '</option>';
   }).join('');
   
   const today = new Date().toISOString().split('T')[0];
@@ -276,9 +283,9 @@ async function generateReport() {
     const end = document.getElementById('report-end').value;
     
     // Fetch data
-    let url = `/api/rivers/${riverId}/data?limit=5000`;
-    if (start) url += `&start_date=${start}`;
-    if (end) url += `&end_date=${end}`;
+    let url = '/api/rivers/' + riverId + '/data?limit=5000';
+    if (start) url += '&start_date=' + start;
+    if (end) url += '&end_date=' + end;
     
     const data = await apiGet(url) || [];
     if (data.length === 0) {
@@ -306,9 +313,9 @@ async function generateReport() {
     
     // Populate simple texts
     const riverObj = rivers.find(r => r.id == riverId);
-    const riverName = riverObj ? (riverObj[\`name_\${currentLang}\`] || riverObj.name) : '---';
+    const riverName = riverObj ? (riverObj['name_' + currentLang] || riverObj.name) : '---';
     document.getElementById('rep-river-name').textContent = riverName.toUpperCase();
-    document.getElementById('rep-period').textContent = \`\${start} dan \${end} gacha\`;
+    document.getElementById('rep-period').textContent = start + " dan " + end + " gacha";
     
     document.getElementById('rep-avg-disc').textContent = dStats.avg;
     document.getElementById('rep-max-disc').textContent = dStats.max;
@@ -322,11 +329,11 @@ async function generateReport() {
     document.getElementById('rep-max-temp').textContent = tStats.max;
     document.getElementById('rep-min-temp').textContent = tStats.min;
     
-    let conclusion = \`Tahlil davomida jami \${data.length} kunlik real ma'lumotlar o'rganildi. \`;
+    let conclusion = "Tahlil davomida jami " + data.length + " kunlik real ma'lumotlar o'rganildi. ";
     if (dStats.max > dStats.avg * 2) {
-      conclusion += \`O'rtacha suv sarfi doimiy bo'lsa-da (\${dStats.avg} m³/s), davr ichida \${dStats.max} m³/s gacha xavfli maksimal oqish tasdiqlandi. Bu toshqin xavfini keltirib chiqarishi mumkin bo'lgan jiddiy burilishdir.\`;
+      conclusion += "O'rtacha suv sarfi doimiy bo'lsa-da (" + dStats.avg + " m³/s), davr ichida " + dStats.max + " m³/s gacha xavfli maksimal oqish tasdiqlandi. Bu toshqin xavfini keltirib chiqarishi mumkin bo'lgan jiddiy burilishdir.";
     } else {
-      conclusion += \`Daryo deyarli uzluksiz sokin rejimda oqmoqda. Suv sathining xavfli ko'tarilishi yoki favquloddagi qurg'oqchilik anomal holda kuzatilmadi.\`;
+      conclusion += "Daryo deyarli uzluksiz sokin rejimda oqmoqda. Suv sathining xavfli ko'tarilishi yoki favquloddagi qurg'oqchilik anomal holda kuzatilmadi.";
     }
     document.getElementById('rep-conclusion').textContent = conclusion;
     
