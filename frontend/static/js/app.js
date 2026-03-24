@@ -565,39 +565,42 @@ window.addEventListener('beforeinstallprompt', (e) => {
   // Stash the event so it can be triggered later.
   deferredPrompt = e;
   
-  // Show the "Install App" button in sidebar if it exists
-  const installBtn = document.getElementById('pwa-install-btn');
-  if (installBtn) {
-    installBtn.style.display = 'flex';
-  } else {
-    // If sidebar nav is already rendered, inject it dynamically
-    const sidebarMenu = document.querySelector('.sidebar-menu');
-    if (sidebarMenu && !document.getElementById('pwa-install-btn')) {
-      const btnHTML = `
-        <a href="#" id="pwa-install-btn" class="nav-link" style="border-left: 2px solid #3B82F6; background: rgba(59, 130, 246, 0.1);">
-          <span class="icon" style="color:#3B82F6;">📱</span>
-          <span style="color:#3B82F6; font-weight:600;">Ilovani o'rnatish (PWA)</span>
-        </a>
-      `;
-      sidebarMenu.insertAdjacentHTML('beforeend', btnHTML);
-      
-      document.getElementById('pwa-install-btn').addEventListener('click', async (evt) => {
-        evt.preventDefault();
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          const { outcome } = await deferredPrompt.userChoice;
-          console.log(`User response to the install prompt: ${outcome}`);
-          deferredPrompt = null;
-          document.getElementById('pwa-install-btn').style.display = 'none';
-        }
-      });
+  // Inject an Install button into the Header
+  const headerRight = document.querySelector('.header-right');
+  if (headerRight && !document.getElementById('mobile-install-btn')) {
+    const btn = document.createElement('button');
+    btn.id = 'mobile-install-btn';
+    btn.className = 'btn btn-primary btn-sm';
+    btn.style.cssText = 'background: linear-gradient(135deg, #3B82F6, #6366F1); color: white; border:none; border-radius: 20px; font-size: 11px; font-weight:700; padding:6px 14px; margin-right:8px; display:inline-flex; align-items:center; gap:6px; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4); animation: pulse 2s infinite;';
+    btn.innerHTML = '<span>📲</span> Ilovani O\'rnatish';
+    
+    // Add pulse keyframe to stylesheet if not exists
+    if (!document.getElementById('pulse-style')) {
+      const style = document.createElement('style');
+      style.id = 'pulse-style';
+      style.innerHTML = `@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }`;
+      document.head.appendChild(style);
     }
+    
+    btn.onclick = async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+        if (outcome === 'accepted') {
+          btn.style.display = 'none';
+        }
+        deferredPrompt = null;
+      }
+    };
+    
+    headerRight.insertBefore(btn, headerRight.firstChild);
   }
 });
 
 // Hide install button if app was installed
 window.addEventListener('appinstalled', () => {
   console.log('PWA was installed');
-  const installBtn = document.getElementById('pwa-install-btn');
+  const installBtn = document.getElementById('mobile-install-btn');
   if (installBtn) installBtn.style.display = 'none';
 });
