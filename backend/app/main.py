@@ -63,6 +63,10 @@ def on_startup():
 
 
 # ─── Frontend page routes ───
+@app.get("/sw.js", include_in_schema=False)
+def serve_sw():
+    return FileResponse(os.path.join(FRONTEND_DIR, "sw.js"), media_type="application/javascript")
+
 @app.get("/", include_in_schema=False)
 def serve_index():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
