@@ -332,6 +332,10 @@ function generateSidebar(activePage) {
           <span class="icon">📁</span>
           <span data-i18n="nav_data">${t('nav_data')}</span>
         </a>
+        <a href="/reports" class="nav-link ${activePage === 'reports' ? 'active' : ''}">
+          <span class="icon">📄</span>
+          <span data-i18n="nav_reports">${t('nav_reports')}</span>
+        </a>
       </div>
       <div class="nav-section">
         <div class="nav-section-title" data-i18n="nav_section_account">${t('nav_section_account')}</div>

@@ -106,6 +106,10 @@ def serve_register():
 def serve_profile():
     return FileResponse(os.path.join(FRONTEND_DIR, "profile.html"))
 
+@app.get("/reports", include_in_schema=False)
+def serve_reports():
+    return FileResponse(os.path.join(FRONTEND_DIR, "reports.html"))
+
 @app.get("/admin", include_in_schema=False)
 def serve_admin():
     return FileResponse(os.path.join(FRONTEND_DIR, "admin.html"))
