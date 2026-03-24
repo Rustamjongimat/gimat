@@ -358,7 +358,35 @@ function generateSidebar(activePage) {
         `}
       </div>
     </nav>
-  </aside>`;
+  </aside>
+
+  <!-- Mobile Bottom Navigation -->
+  <nav class="bottom-nav">
+    <a href="/" class="bottom-nav-item ${activePage === 'map' ? 'active' : ''}">
+      <span class="icon">🗺️</span>
+      <span>${t('nav_map')}</span>
+    </a>
+    <a href="/dashboard" class="bottom-nav-item ${activePage === 'dashboard' ? 'active' : ''}">
+      <span class="icon">📊</span>
+      <span>${t('nav_dashboard')}</span>
+    </a>
+    <a href="/forecast" class="bottom-nav-item ${activePage === 'forecast' ? 'active' : ''}">
+      <span class="icon">🤖</span>
+      <span>A.I</span>
+    </a>
+    <a href="/alerts" class="bottom-nav-item ${activePage === 'alerts' ? 'active' : ''}">
+      <span class="icon">🔔</span>
+      <span style="position:relative;">
+        Ogoh
+        <span style="position:absolute; top:-12px; right:-10px; background:var(--danger); color:white; border-radius:50%; width:16px; height:16px; font-size:9px; display:flex; align-items:center; justify-content:center;">!</span>
+      </span>
+    </a>
+    <a href="/profile" class="bottom-nav-item ${activePage === 'profile' ? 'active' : ''}">
+      <span class="icon">👤</span>
+      <span>Profil</span>
+    </a>
+  </nav>
+  `;
 }
 
 function generateHeader(pageTitle, pageTitleKey) {
