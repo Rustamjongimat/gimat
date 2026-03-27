@@ -350,6 +350,10 @@ function generateSidebar(activePage) {
           <span>Boshqaruv (Admin)</span>
         </a>
         ` : ''}
+        <a href="/docs" target="_blank" class="nav-link" style="border-left: 2px solid #10B981;">
+          <span class="icon">🛠️</span>
+          <span>API Integratsiya (Docs)</span>
+        </a>
         <a href="#" onclick="logout()" class="nav-link">
           <span class="icon">🚪</span>
           <span>Chiqish</span>

@@ -5,8 +5,9 @@ Gidrologik Intellektual Monitoring va Axborot Tizimi
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 from .database import engine, SessionLocal, Base
+from datetime import datetime
 from .routers import rivers, stations, forecast, alerts, auth, export, reports, ws, admin
 from .seed_data import seed_database
 import os
@@ -66,6 +67,52 @@ def on_startup():
 @app.get("/sw.js", include_in_schema=False)
 def serve_sw():
     return FileResponse(os.path.join(FRONTEND_DIR, "sw.js"), media_type="application/javascript")
+
+
+# ─── SEO: robots.txt ───
+@app.get("/robots.txt", include_in_schema=False)
+def serve_robots():
+    content = """User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /profile
+
+Sitemap: https://gimat.onrender.com/sitemap.xml
+"""
+    return PlainTextResponse(content=content.strip(), media_type="text/plain")
+
+
+# ─── SEO: sitemap.xml ───
+@app.get("/sitemap.xml", include_in_schema=False)
+def serve_sitemap():
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    pages = [
+        {"loc": "/",          "priority": "1.0",  "changefreq": "daily"},
+        {"loc": "/dashboard", "priority": "0.9",  "changefreq": "daily"},
+        {"loc": "/forecast",  "priority": "0.8",  "changefreq": "daily"},
+        {"loc": "/alerts",    "priority": "0.8",  "changefreq": "daily"},
+        {"loc": "/data",      "priority": "0.7",  "changefreq": "weekly"},
+        {"loc": "/reports",   "priority": "0.7",  "changefreq": "weekly"},
+        {"loc": "/login",     "priority": "0.3",  "changefreq": "monthly"},
+        {"loc": "/register",  "priority": "0.3",  "changefreq": "monthly"},
+    ]
+    base_url = "https://gimat.onrender.com"
+    urls_xml = ""
+    for p in pages:
+        urls_xml += f"""
+  <url>
+    <loc>{base_url}{p['loc']}</loc>
+    <lastmod>{today}</lastmod>
+    <changefreq>{p['changefreq']}</changefreq>
+    <priority>{p['priority']}</priority>
+  </url>"""
+    
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls_xml}
+</urlset>"""
+    return Response(content=xml.strip(), media_type="application/xml")
+
 
 @app.get("/", include_in_schema=False)
 def serve_index():

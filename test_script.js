@@ -1,159 +1,19 @@
-<!DOCTYPE html>
-<html lang="uz">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GIMAT — Rasmiy Hisobotlar</title>
-  <meta property="og:title" content="GIMAT — Rasmiy Hisobotlar">
-  <meta property="og:description" content="O'zbekiston daryolari uchun rasmiy gidrologik hisobotlar generatori">
-  <meta property="og:type" content="website">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>">
-  <link rel="stylesheet" href="/static/css/style.css">
-  
-  <link rel="manifest" href="/static/manifest.json">
-  <meta name="theme-color" content="#2563eb">
-  <link rel="apple-touch-icon" href="/static/img/icon.svg">
-  
-  <!-- Plotly.js -->
-  <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
 
-  <style>
-    /* A4 Report Styling */
-    .a4-wrapper {
-      background: var(--bg-primary);
-      padding: 32px;
-      display: flex;
-      justify-content: center;
-      overflow-x: auto;
-    }
-    
-    .a4-page {
-      background: white;
-      color: black;
-      width: 210mm;
-      min-height: 297mm;
-      padding: 20mm;
-      box-shadow: var(--shadow-lg);
-      font-family: 'Times New Roman', Times, serif;
-      position: relative;
-    }
-    
-    .report-header {
-      text-align: center;
-      border-bottom: 2px solid black;
-      padding-bottom: 12px;
-      margin-bottom: 24px;
-    }
-    
-    .report-header h2 {
-      font-size: 18px;
-      text-transform: uppercase;
-      margin-bottom: 4px;
-    }
-    
-    .report-header h3 {
-      font-size: 16px;
-      font-weight: normal;
-    }
-    
-    .report-title {
-      text-align: center;
-      font-size: 20px;
-      font-weight: bold;
-      margin-bottom: 24px;
-    }
-    
-    .report-info {
-      margin-bottom: 24px;
-      font-size: 14px;
-      line-height: 1.8;
-    }
-    
-    .report-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 24px;
-      font-size: 13px;
-    }
-    
-    .report-table th, .report-table td {
-      border: 1px solid black;
-      padding: 8px;
-      text-align: center;
-    }
-    
-    .report-table th {
-      background-color: #f3f4f6;
-      font-weight: bold;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    
-    .report-signatures {
-      margin-top: 40px;
-      display: flex;
-      justify-content: space-between;
-      font-size: 14px;
-    }
-    
-    .signature-block {
-      width: 40%;
-    }
-    
-    .signature-line {
-      border-bottom: 1px solid black;
-      margin-top: 40px;
-      height: 20px;
-    }
-
-    /* Print Styles */
-    @media print {
-      body * {
-        visibility: hidden;
-      }
-      .a4-page, .a4-page * {
-        visibility: visible;
-      }
-      .a4-page {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: auto;
-        box-shadow: none;
-        padding: 0;
-        margin: 0;
-        background: white;
-      }
-      /* Optional: remove app layout paddings and colors */
-      body { background: white; }
-      @page {
-        size: A4 portrait;
-        margin: 15mm;
-      }
-    }
-  </style>
-</head>
-<body>
-<div class="app-layout" id="app">
-  <!-- Sidebar Inject -->
-  <div id="sidebar-root"></div>
-  
+document.getElementById('app').innerHTML = `
+  ${generateSidebar('reports')}
   <div class="main-content">
-    <!-- Header Inject -->
-    <div id="header-root"></div>
-    
+    ${generateHeader(t('nav_reports'), 'nav_reports')}
     <div class="page-content">
       
       <!-- Report Generator Form -->
       <div class="card mb-24 no-print">
         <div class="card-header">
-          <h3 class="card-title">🖨️ <span data-i18n="nav_reports">Hisobot Parametrlari</span></h3>
+          <h3 class="card-title">🖨️ Hisobot Parametrlari</h3>
           <button class="btn btn-danger btn-sm" onclick="window.print()" id="printBtn" style="display:none;">📄 PDF ga chop etish (Print)</button>
         </div>
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; align-items: end;">
           <div class="form-group" style="margin:0;">
-            <label class="form-label" data-i18n="river">Daryo</label>
+            <label class="form-label">${t('river')}</label>
             <select class="form-select" id="report-river"></select>
           </div>
           <div class="form-group" style="margin:0;">
@@ -227,10 +87,6 @@
           
           <div class="report-info">
             <b>Xulosa (Intellektual analiz):</b> <br>
-            <div style="margin-bottom: 8px;">
-              <b>Umumiy oqib o'tgan suv hajmi:</b> 
-              <span id="rep-volume" style="font-weight:bold; color:#2563EB;">0</span> million m³
-            </div>
             <span id="rep-conclusion">Yuqoridagi ma'lumotlar tahlil qilinganda...</span>
           </div>
           
@@ -252,14 +108,8 @@
 
     </div>
   </div>
-</div>
-
-<script src="/static/js/app.js"></script>
-<script>
-  // Dynamic UI Injections
-  document.getElementById('sidebar-root').outerHTML = generateSidebar('reports');
-  document.getElementById('header-root').outerHTML = generateHeader(t('nav_reports'), 'nav_reports');
-  initResponsive();
+`;
+initResponsive();
 
 let rivers = [];
 
@@ -267,8 +117,8 @@ async function init() {
   rivers = await apiGet('/api/rivers') || [];
   const select = document.getElementById('report-river');
   select.innerHTML = rivers.map(r => {
-    const name = r['name_' + currentLang] || r.name;
-    return '<option value="' + r.id + '">' + name + '</option>';
+    const name = r[`name_${currentLang}`] || r.name;
+    return `<option value="${r.id}">${name}</option>`;
   }).join('');
   
   const today = new Date().toISOString().split('T')[0];
@@ -287,9 +137,9 @@ async function generateReport() {
     const end = document.getElementById('report-end').value;
     
     // Fetch data
-    let url = '/api/rivers/' + riverId + '/data?limit=5000';
-    if (start) url += '&start_date=' + start;
-    if (end) url += '&end_date=' + end;
+    let url = `/api/rivers/${riverId}/data?limit=5000`;
+    if (start) url += `&start_date=${start}`;
+    if (end) url += `&end_date=${end}`;
     
     const data = await apiGet(url) || [];
     if (data.length === 0) {
@@ -317,9 +167,9 @@ async function generateReport() {
     
     // Populate simple texts
     const riverObj = rivers.find(r => r.id == riverId);
-    const riverName = riverObj ? (riverObj['name_' + currentLang] || riverObj.name) : '---';
+    const riverName = riverObj ? (riverObj[`name_${currentLang}`] || riverObj.name) : '---';
     document.getElementById('rep-river-name').textContent = riverName.toUpperCase();
-    document.getElementById('rep-period').textContent = start + " dan " + end + " gacha";
+    document.getElementById('rep-period').textContent = `${start} dan ${end} gacha`;
     
     document.getElementById('rep-avg-disc').textContent = dStats.avg;
     document.getElementById('rep-max-disc').textContent = dStats.max;
@@ -333,16 +183,11 @@ async function generateReport() {
     document.getElementById('rep-max-temp').textContent = tStats.max;
     document.getElementById('rep-min-temp').textContent = tStats.min;
     
-    // Calculate total volume (Million m3)
-    const totalDischargeSum = discharges.reduce((a,b) => a + b, 0);
-    const totalVolumeMlnM3 = (totalDischargeSum * 0.0864).toFixed(2);
-    document.getElementById('rep-volume').textContent = totalVolumeMlnM3;
-    
-    let conclusion = "Tahlil davomida jami " + data.length + " kunlik real ma'lumotlar o'rganildi. ";
+    let conclusion = `Tahlil davomida jami ${data.length} kunlik real ma'lumotlar o'rganildi. `;
     if (dStats.max > dStats.avg * 2) {
-      conclusion += "O'rtacha suv sarfi doimiy bo'lsa-da (" + dStats.avg + " m³/s), davr ichida " + dStats.max + " m³/s gacha xavfli maksimal oqish tasdiqlandi. Bu toshqin xavfini keltirib chiqarishi mumkin bo'lgan jiddiy burilishdir.";
+      conclusion += `O'rtacha suv sarfi doimiy bo'lsa-da (${dStats.avg} m³/s), davr ichida ${dStats.max} m³/s gacha xavfli maksimal oqish tasdiqlandi. Bu toshqin xavfini keltirib chiqarishi mumkin bo'lgan jiddiy burilishdir.`;
     } else {
-      conclusion += "Daryo deyarli uzluksiz sokin rejimda oqmoqda. Suv sathining xavfli ko'tarilishi yoki favquloddagi qurg'oqchilik anomal holda kuzatilmadi.";
+      conclusion += `Daryo deyarli uzluksiz sokin rejimda oqmoqda. Suv sathining xavfli ko'tarilishi yoki favquloddagi qurg'oqchilik anomal holda kuzatilmadi.`;
     }
     document.getElementById('rep-conclusion').textContent = conclusion;
     
@@ -378,6 +223,4 @@ async function generateReport() {
 }
 
 init();
-</script>
-</body>
-</html>
+
