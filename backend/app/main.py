@@ -78,7 +78,7 @@ Disallow: /admin
 Disallow: /api/
 Disallow: /profile
 
-Sitemap: https://gimat.onrender.com/sitemap.xml
+Sitemap: https://gimat.uz/sitemap.xml
 """
     return PlainTextResponse(content=content.strip(), media_type="text/plain")
 
@@ -97,7 +97,7 @@ def serve_sitemap():
         {"loc": "/login",     "priority": "0.3",  "changefreq": "monthly"},
         {"loc": "/register",  "priority": "0.3",  "changefreq": "monthly"},
     ]
-    base_url = "https://gimat.onrender.com"
+    base_url = "https://gimat.uz"
     urls_xml = ""
     for p in pages:
         urls_xml += f"""
